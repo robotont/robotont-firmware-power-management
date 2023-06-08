@@ -30,14 +30,14 @@ byte systemOn = 0;
 
 void loop() {
   byte buttonState = PINB & (1 << POWER_SW);
-  byte estopState = PINA & (1 << ESTOP_SW);
+//  byte estopState = PINA & (1 << ESTOP_SW);
 
-  if (estopState) {
-    // estop disable
-    if (!prevEstopState) {
-      digitalWrite(ESTOP_LED_R, HIGH);
-      digitalWrite(ESTOP_LED_G, LOW);
-    }
+//  if (estopState) {
+//    // estop disable
+//    if (!prevEstopState) {
+//      digitalWrite(ESTOP_LED_R, HIGH);
+//      digitalWrite(ESTOP_LED_G, LOW);
+//    }
 
 
     if (prevButtonState && buttonState) counter = 0;
@@ -117,16 +117,16 @@ void loop() {
         }
       }
     }
-  }
-  else {
-    // estop enable
-    if (prevEstopState) {
-      digitalWrite(MOTOR_ON, LOW);
-      digitalWrite(ESTOP_LED_G, HIGH);
-      digitalWrite(ESTOP_LED_R, LOW);
-    }
-
-  }
+//  }
+//  else {
+//    // estop enable
+//    if (prevEstopState) {
+//      digitalWrite(MOTOR_ON, LOW);
+//      digitalWrite(ESTOP_LED_G, HIGH);
+//      digitalWrite(ESTOP_LED_R, LOW);
+//    }
+//
+//  }
   prevButtonState = buttonState;
-  prevEstopState = estopState;
+//  prevEstopState = estopState;
 } 
