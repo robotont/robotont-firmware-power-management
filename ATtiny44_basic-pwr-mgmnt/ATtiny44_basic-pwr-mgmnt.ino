@@ -1,56 +1,75 @@
 #define POWER_ON PA0 
 #define MOTOR_ON PA1
-#define ESTOP_SW PA2 // normally closed i.e if button is pressed, signal goes low
+#define ESTOP_SW PA2 // normally closed i.e if button is pressed, signal goes high
 #define ESTOP_SIG PA3 // signal for STM
 #define USB_SENSE PA4 // 5 V from NUC 
 #define ESTOP_LED_R PA5 // common anode i.e pull down to turn on
 #define ESTOP_LED_G PA6 // common anode i.e pull down to turn on
 #define BUZZER PA7
 
-#define POWEROFF_REQ PB0 // TODO 
-#define POWEROFF PB1 // TODO 
-#define POWER_SW PB2 // normally closed i.e if button is pressed, signal goes low
+#define POWEROFF_REQ PB0 // external poweroff request
+#define POWEROFF PB1 // power off signal to other devices 
+#define POWER_SW PB2 // pulled high i.e if button is pressed, signal goes low
 
-#define CNT_MULT 1/16.0
+#define POWER_ON_TIME_MS 3000
+#define SOFT_SHUTDOWN_TIME_MS 3000
+#define HARD_SHUTDOWN_TIME_MS 10000
+#define SHUTDOWN_TIMEOUT_MS 30000
 
 void setup()
 {
   // 1 for output, 0 for input
-  DDRA = (1 << POWER_ON) | (1 << MOTOR_ON) | (1 << BUZZER) | (0 << ESTOP_SW) | (1 << ESTOP_SIG);
-  DDRB = 0 << POWER_SW;
+  DDRA = (1 << POWER_ON) | (1 << MOTOR_ON) | (0 << ESTOP_SW) | (1 << ESTOP_SIG) | (0 << USB_SENSE) | (1 << ESTOP_LED_R) | (1 << ESTOP_LED_G) | (1 << BUZZER);
+  DDRB = (0 << POWEROFF_REQ) | (1 << POWEROFF) | (0 << POWER_SW);
+
+  PORTA = (1 << ESTOP_SW); // ESTOP pullup
 
   digitalWrite(ESTOP_LED_R, LOW);
   digitalWrite(ESTOP_LED_G, LOW);
 }
 
-byte prevButtonState = 0;
-unsigned long counter = 0;
+byte prevButtonState = 1;
+byte prevEstopState = 0;
 byte systemOn = 0;
+byte buttonState;
+byte estopState;
+byte usbSenseState;
+
+uint32_t currentTime;
+uint32_t timer;
 
 void loop()
 {
-  byte buttonState = PINB & (1 << POWER_SW);
-  byte estopState = PINA & (1 << ESTOP_SW);
+  currentTime = millis();
+  buttonState = PINB & (1 << POWER_SW);
 
-  if (!estopState) // ESTOP pressed
-  {
-    digitalWrite(MOTOR_ON, LOW);
-    digitalWrite(ESTOP_LED_R, LOW);
-    digitalWrite(ESTOP_LED_G, HIGH);
-  }
-
-  // counter counts up only if button held down
-  if (!buttonState ) counter++;
-  else counter = 0;
-
+  // if button is not pressed, timer will be updated
+  if (buttonState) timer = currentTime;
+  else (!buttonState) ;
+  
   // power on sequence
   if (!systemOn)
   {
-    if (counter > 300000)
+    if (currentTime - timer > POWER_ON_TIME_MS)
     {
       digitalWrite(POWER_ON, HIGH);
-      digitalWrite(MOTOR_ON, LOW);
-      counter = 110000; // hack to not turn on motors instantly
+      estopState = PINA & (1 << ESTOP_SW);
+      
+      if (estopState)
+      {
+        digitalWrite(MOTOR_ON, LOW);
+        digitalWrite(ESTOP_LED_G, HIGH);
+        digitalWrite(ESTOP_LED_R, LOW);
+      }
+      
+      else 
+      {
+        digitalWrite(MOTOR_ON, HIGH);
+        digitalWrite(ESTOP_LED_G, LOW);
+        digitalWrite(ESTOP_LED_R, HIGH);
+      }
+      timer = currentTime; // reset timer
+
       systemOn = 1;
 
       beep(1000);
@@ -61,39 +80,68 @@ void loop()
 
   else
   {
-    if (!prevButtonState && buttonState) // button released
+    estopState = PINA & (1 << ESTOP_SW);
+    if (estopState && !prevEstopState) // ESTOP pressed
     {
-      if (counter > 5000 && counter < 10000) // button press was brief
-      {
-        if (!(PORTA & (1 << MOTOR_ON))) // turn motors on
-        {
-          digitalWrite(MOTOR_ON, HIGH);
-          digitalWrite(ESTOP_LED_G, LOW);
-          digitalWrite(ESTOP_LED_R, HIGH);
-        }
-        else
-        {
-          digitalWrite(MOTOR_ON, LOW);
-          digitalWrite(ESTOP_LED_G, LOW);
-          digitalWrite(ESTOP_LED_R, LOW);
-        }
-      }
+      beep(1200);
+      digitalWrite(MOTOR_ON, LOW);
+      digitalWrite(ESTOP_LED_R, LOW);
+      digitalWrite(ESTOP_LED_G, HIGH);
+    }
+
+    else if (!estopState && prevEstopState) // ESTOP released
+    {
+      beep(300);
+      digitalWrite(MOTOR_ON, HIGH);
+      digitalWrite(ESTOP_LED_R, HIGH);
+      digitalWrite(ESTOP_LED_G, LOW);
     }
 
     // shutdown sequence
-    if (counter > 400000)
+    if (currentTime - timer > SOFT_SHUTDOWN_TIME_MS)
     {
+      digitalWrite(POWEROFF, HIGH);
       digitalWrite(MOTOR_ON, LOW);
-      digitalWrite(POWER_ON, LOW);
+      digitalWrite(ESTOP_LED_G, LOW);
+      digitalWrite(ESTOP_LED_R, LOW);
       
-      // PORTA = (0 << POWER_ON) | (0 << MOTOR_ON);  
-      counter = 0;
-      systemOn = 0;
-
       beep(600);
       beep(800);
+
+      // usbSenseState = PINA & (1 << USB_SENSE);
+      int usbsenseTEMP = analogRead(USB_SENSE);
+      // while (usbSenseState)
+      while (usbsenseTEMP > 200)
+      {
+        currentTime = millis();
+        if ((currentTime - timer > HARD_SHUTDOWN_TIME_MS) && !buttonState)
+        {
+          break;
+        }
+        if (currentTime - timer > SHUTDOWN_TIMEOUT_MS) 
+        {
+          break;
+        }
+        // ESTOP led blink yellow
+        delay(500);
+        PINA = (1 << ESTOP_LED_G) | (1 << ESTOP_LED_R); 
+
+        buttonState = PINB & (1 << POWER_SW);
+        usbsenseTEMP = analogRead(USB_SENSE);
+        // usbSenseState = PINA & (1 << USB_SENSE);
+      }
+
       beep(1000);
+      beep(1200);
+
+      digitalWrite(POWER_ON, LOW);
+      digitalWrite(ESTOP_LED_G, HIGH);
+      digitalWrite(ESTOP_LED_R, HIGH);
+
+      systemOn = 0;
+      timer = currentTime; // reset timer
     }
+    prevEstopState = estopState;
   }
   prevButtonState = buttonState;
 } 
