@@ -1,7 +1,7 @@
 #define POWER_ON PA0 
 #define MOTOR_ON PA1
 #define ESTOP_SW PA2 // normally closed i.e if button is pressed, signal goes high
-#define ESTOP_SIG PA3 // signal for STM
+#define VBAT_SENSE PA3 // signal for STM
 #define USB_SENSE PA4 // 5 V from NUC 
 #define ESTOP_LED_R PA5 // common anode i.e pull down to turn on
 #define ESTOP_LED_G PA6 // common anode i.e pull down to turn on
@@ -16,10 +16,12 @@
 #define HARD_SHUTDOWN_TIME_MS 10000
 #define SHUTDOWN_TIMEOUT_MS 30000
 
+#define VBAT_SENSE_
+
 void setup()
 {
   // 1 for output, 0 for input
-  DDRA = (1 << POWER_ON) | (1 << MOTOR_ON) | (0 << ESTOP_SW) | (1 << ESTOP_SIG) | (0 << USB_SENSE) | (1 << ESTOP_LED_R) | (1 << ESTOP_LED_G) | (1 << BUZZER);
+  DDRA = (1 << POWER_ON) | (1 << MOTOR_ON) | (0 << ESTOP_SW) | (0 << VBAT_SENSE) | (0 << USB_SENSE) | (1 << ESTOP_LED_R) | (1 << ESTOP_LED_G) | (1 << BUZZER);
   DDRB = (0 << POWEROFF_REQ) | (1 << POWEROFF) | (0 << POWER_SW);
 
   PORTA = (1 << ESTOP_SW); // ESTOP pullup
@@ -34,9 +36,11 @@ byte systemOn = 0;
 byte buttonState;
 byte estopState;
 byte usbSenseState;
+byte vbatSenseState;
 
 uint32_t currentTime;
 uint32_t timer;
+uint32_t vbatTimer=0;
 
 void loop()
 {
@@ -144,6 +148,8 @@ void loop()
     prevEstopState = estopState;
   }
   prevButtonState = buttonState;
+
+  checkVoltage();
 } 
 
 // arbitrary note pitch (period in us)
@@ -155,5 +161,34 @@ void beep(uint16_t note)
     delayMicroseconds(note);
     digitalWrite(BUZZER, LOW);
     delayMicroseconds(note);
+  }
+}
+
+// Limit calculation:
+// VBAT=13 V through R1=100k and R2=15k voltage divider forms 1.7 V,
+// which for 10bit ADC is CODE=1024/3.3*VBAT*R2/(R1+R2) or 1024/3.3*13*15/115 = 526
+void checkVoltage()
+{
+  if (analogRead(VBAT_SENSE) <= 526) 
+  {
+    if (currentTime - vbatTimer > 3000)
+    {
+      for (uint8_t i = 0; i < 3; i++){
+        for (uint16_t j = 0; j < 100; j++)
+        {
+          digitalWrite(BUZZER, HIGH);
+          delayMicroseconds(300);
+          digitalWrite(BUZZER, LOW);
+          delayMicroseconds(300);  
+          
+        }
+        delay(100);
+      }
+      vbatTimer = currentTime; // reset timer for a while
+    }
+  }
+  else
+  {
+    vbatTimer = currentTime; // vbat higher than threshold, reset timer
   }
 }
