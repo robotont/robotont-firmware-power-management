@@ -3,6 +3,9 @@
 #include <avr/io.h>
 #include <stdio.h>
 
+//IF POSSIBLE DONT USE pinMode() function, some pin mappings are not valid
+
+
 //GATES
 #define PIN_BAT_PWR_CTRL 7 // PortB
 #define PIN_SYS_PWR_CTRL 3 //PortA
@@ -15,6 +18,7 @@
 #define PIN_V_SENSE 1 //PORTC
 #define PIN_VBAT_SENSE 2 //PORTC
 #define PIN_POWER_SW 2 //PORTD
+#define PIN_ESTOP 3 //PORTD
 #define PIN_DBG_LED_G 6 //PORTD
 #define PIN_DBG_LED_R 5 //PORTD
 
@@ -49,6 +53,10 @@ void setup() {
 
   //POWER BUTTON as INPUT
   DDRD &= ~(1 << PIN_POWER_SW);
+  //ESTOP as INPUT
+  DDRD &= ~(1 << PIN_ESTOP);
+  PCMSK2 |= (1 << PCINT17);   //Enable Pin Change Interrupt
+  PCICR |= (1 << PCIE2); // Enable Pin Change Interrupt for Port D
 
   //LEDS as OUTPUT
   DDRC |= (1 << PIN_DBG_LED_R);
@@ -69,13 +77,13 @@ void setup() {
   bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
   
   const int interruptFrequency = 1500;
-  TCCR0A = (1<<CTC0) | (1<<CS01); //CTC ja kaheksane pre
-  TCNT0  = 0; //Counter nulli
+  TCCR0A = (1<<CTC0) | (1<<CS01); //CTC and 8 prescaler
+  TCNT0  = 0; //Counter to zero
   OCR0A = 4000000 / (2 *8 *interruptFrequency) - 1; 
   // Enable Timer/Counter0 Output Compare Match A Interrupt Enable
   TIMSK0 |= (1 << OCIE0A);
 
-  ADCSRA |= (0 << ADPS2) | (0 << ADPS1) | (0 << ADPS0); //ADC pre minimaalseks
+  ADCSRA |= (0 << ADPS2) | (0 << ADPS1) | (0 << ADPS0); //ADC prescaler to minimal //Not tested
 
   sei();
 
@@ -83,9 +91,10 @@ void setup() {
 
 enum PowerState powerState = POWER_OFF;
 enum SwitchingState switchingState = INIT;
+uint8_t EStopPressed = 0;
 
 void loop() {
-
+  
   bitWrite(PORTD, PIN_DBG_LED_G, 1);
   delay(10000);
   bitWrite(PORTD, PIN_DBG_LED_G, 0);
@@ -115,7 +124,7 @@ void loop() {
 //Bat off, wall on
 void switchBatToWall(){
   bitWrite(PORTA, PIN_SYS_PWR_CTRL, 1); //SYS ON
-  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0); //MOTORS OFF
+  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, !EStopPressed); //MOTORS OFF
   bitWrite(PORTB, PIN_BAT_PWR_CTRL, 0);
   bitWrite(PORTD, PIN_WALL_PWR_CTRL, 1);
  
@@ -125,7 +134,7 @@ void switchBatToWall(){
 //Wall off, bat on
 void switchWallToBat(){
   bitWrite(PORTA, PIN_SYS_PWR_CTRL, 1); //SYS ON
-  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 1); //MOTORS ON
+  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, !EStopPressed); //MOTORS ON if ESTOP not pressed
   bitWrite(PORTD, PIN_WALL_PWR_CTRL, 0);
   bitWrite(PORTB, PIN_BAT_PWR_CTRL, 1);
   
@@ -143,6 +152,21 @@ ISR(TIMER0_COMPA_vect) {
       switchWallToBat();
     }
   }
+}
+
+
+ISR(PCINT2_vect) {
+    //Code here for PCINT[23:16], we have PCINT17
+    if(bitRead(PORTD, PIN_ESTOP)){ //Button 1 when pressed?
+      EStopPressed=1;
+      bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
+    }
+    else{
+      EStopPressed=0;
+      if(switchingState == CONNECTED_TO_BAT){
+        bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 1);
+      }
+    }
 }
 
 //Current calculations:
