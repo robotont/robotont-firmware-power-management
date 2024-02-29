@@ -59,10 +59,10 @@ void setup() {
   PCICR |= (1 << PCIE2); // Enable Pin Change Interrupt for Port D
 
   //LEDS as OUTPUT
-  DDRC |= (1 << PIN_DBG_LED_R);
-  DDRC |= (1 << PIN_DBG_LED_G);
-  bitWrite(PORTC, PIN_DBG_LED_R, 0);
-  bitWrite(PORTC, PIN_DBG_LED_G, 0);
+  DDRD |= (1 << PIN_DBG_LED_R);
+  DDRD |= (1 << PIN_DBG_LED_G);
+  bitWrite(PORTD, PIN_DBG_LED_R, 0);
+  bitWrite(PORTD, PIN_DBG_LED_G, 0);
 
   //GATES as OUTPUT
   DDRB |= (1 << PIN_BAT_PWR_CTRL);
