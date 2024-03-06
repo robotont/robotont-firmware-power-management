@@ -18,7 +18,7 @@
 #define PIN_V_SENSE 1 //PORTC
 #define PIN_VBAT_SENSE 2 //PORTC
 #define PIN_POWER_SW 2 //PORTD
-#define PIN_ESTOP 3 //PORTD
+#define PIN_ESTOP_SW 3 //PORTD
 #define PIN_DBG_LED_G 6 //PORTD
 #define PIN_DBG_LED_R 5 //PORTD
 #define PIN_BUZZER 0 //PD0
@@ -30,7 +30,7 @@
 #define I_NUC_SENSE PC3
 
 #define POWER_SW PD2
-#define ESTOP PD3
+#define ESTOP_SW PD3
 
 enum PowerState{
   POWER_OFF,
@@ -58,8 +58,8 @@ void setup() {
   //POWER BUTTON as INPUT
   DDRD &= ~(1 << PIN_POWER_SW);
   //ESTOP as INPUT
-  DDRD &= ~(1 << PIN_ESTOP);
-  PCMSK2 |= (1 << PCINT17);   //Enable Pin Change Interrupt
+  DDRD &= ~(1 << PIN_ESTOP_SW);
+  PCMSK2 |= (1 << PCINT19);   //Enable Pin Change Interrupt
   PCICR |= (1 << PCIE2); // Enable Pin Change Interrupt for Port D
 
   //LEDS as OUTPUT
@@ -162,8 +162,8 @@ ISR(TIMER0_COMPA_vect) {
 
 
 ISR(PCINT2_vect) {
-    //Code here for PCINT[23:16], we have PCINT17
-    if(digitalRead(ESTOP)){ //Button 1 when pressed?
+    bitWrite(PORTD, PIN_DBG_LED_R, 1);
+    if(!digitalRead(ESTOP_SW)){ //Button 0 when pressed
       EStopPressed=1;
       bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
     }
