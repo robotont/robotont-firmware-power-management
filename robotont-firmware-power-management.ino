@@ -148,7 +148,6 @@ void switchWallToBat(){
 ISR(TIMER0_COMPA_vect) {
   
   if(powerState == POWER_ON){
-    bitWrite(PORTD, PIN_BUZZER, !toggle);
     uint16_t V = analogRead(V_SENSE);
     uint16_t VBAT = analogRead(VBAT_SENSE);
     if(V >= VBAT && (switchingState !=  CONNECTED_TO_BAT)){
