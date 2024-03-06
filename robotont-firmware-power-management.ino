@@ -21,12 +21,16 @@
 #define PIN_ESTOP 3 //PORTD
 #define PIN_DBG_LED_G 6 //PORTD
 #define PIN_DBG_LED_R 5 //PORTD
+#define PIN_BUZZER 0 //PD0
 
 //Defines for analogRead function
 #define V_SENSE PC1
 #define VBAT_SENSE PC2
 #define I_MOTORS_SENSE PA1
 #define I_NUC_SENSE PC3
+
+#define POWER_SW PD2
+#define ESTOP PD3
 
 enum PowerState{
   POWER_OFF,
@@ -39,7 +43,7 @@ enum SwitchingState{
   CONNECTED_TO_BAT
 };
 
-
+uint8_t toggle=0;
 
 void setup() {
   
@@ -100,7 +104,7 @@ void loop() {
   bitWrite(PORTD, PIN_DBG_LED_G, 0);
   delay(10000);
 
-  if (!bitRead(PORTD, PIN_POWER_SW))
+  if (!digitalRead(POWER_SW))
   {
     if (powerState == POWER_OFF)
     {
@@ -112,7 +116,7 @@ void loop() {
       // Turn power off
       powerState = POWER_OFF;
       switchingState = INIT;
-      bitWrite(PORTD, PIN_DBG_LED_G, 0);
+      bitWrite(PORTD, PIN_DBG_LED_R, 0);
       bitWrite(PORTB, PIN_BAT_PWR_CTRL, 0);
       bitWrite(PORTD, PIN_WALL_PWR_CTRL, 0);
       bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
@@ -142,7 +146,9 @@ void switchWallToBat(){
 }
 
 ISR(TIMER0_COMPA_vect) {
+  
   if(powerState == POWER_ON){
+    bitWrite(PORTD, PIN_BUZZER, !toggle);
     uint16_t V = analogRead(V_SENSE);
     uint16_t VBAT = analogRead(VBAT_SENSE);
     if(V >= VBAT && (switchingState !=  CONNECTED_TO_BAT)){
@@ -157,7 +163,7 @@ ISR(TIMER0_COMPA_vect) {
 
 ISR(PCINT2_vect) {
     //Code here for PCINT[23:16], we have PCINT17
-    if(bitRead(PORTD, PIN_ESTOP)){ //Button 1 when pressed?
+    if(digitalRead(ESTOP)){ //Button 1 when pressed?
       EStopPressed=1;
       bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
     }
