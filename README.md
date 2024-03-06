@@ -9,7 +9,7 @@ File -> Preferences -> Additional boards manager URLs:
 
 - Chip -> ATtiny88
 
-- Clock Source -> 4 MHz (internal)
+- Clock Source -> 1 MHz (internal)
 
 - Pin mapping -> Standard
 
