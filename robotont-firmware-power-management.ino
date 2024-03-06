@@ -162,7 +162,6 @@ ISR(TIMER0_COMPA_vect) {
 
 
 ISR(PCINT2_vect) {
-    bitWrite(PORTD, PIN_DBG_LED_R, 1);
     if(!digitalRead(ESTOP_SW)){ //Button 0 when pressed
       EStopPressed=1;
       bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
