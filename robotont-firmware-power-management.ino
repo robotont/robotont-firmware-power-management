@@ -43,7 +43,9 @@ enum SwitchingState{
   CONNECTED_TO_BAT
 };
 
-uint8_t toggle=0;
+enum PowerState powerState = POWER_OFF;
+enum SwitchingState switchingState = INIT;
+uint8_t EStopPressed = 0;
 
 void setup() {
   
@@ -79,6 +81,11 @@ void setup() {
   bitWrite(PORTD, PIN_WALL_PWR_CTRL, 0);
   bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
   bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
+
+
+  if(!digitalRead(ESTOP_SW)){
+    EStopPressed = 1;
+  }
   
   const int interruptFrequency = 1500;
   TCCR0A = (1<<CTC0) | (1<<CS01); //CTC and 8 prescaler
@@ -93,9 +100,6 @@ void setup() {
 
 }
 
-enum PowerState powerState = POWER_OFF;
-enum SwitchingState switchingState = INIT;
-uint8_t EStopPressed = 0;
 
 void loop() {
   
@@ -128,7 +132,7 @@ void loop() {
 //Bat off, wall on
 void switchBatToWall(){
   bitWrite(PORTA, PIN_SYS_PWR_CTRL, 1); //SYS ON
-  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, !EStopPressed); //MOTORS OFF
+  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0); //MOTORS OFF
   bitWrite(PORTB, PIN_BAT_PWR_CTRL, 0);
   bitWrite(PORTD, PIN_WALL_PWR_CTRL, 1);
  
