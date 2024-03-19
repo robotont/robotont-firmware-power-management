@@ -75,7 +75,8 @@ void setup() {
   DDRD |= (1 << PIN_DBG_LED_G);
   bitWrite(PORTD, PIN_DBG_LED_R, 0);
   bitWrite(PORTD, PIN_DBG_LED_G, 0);
-  
+
+  //ESTOP LEDS as OUTPUT
   DDRB |= (1 << ESTOP_LED_R);
   DDRB |= (1 << ESTOP_LED_G);
   bitWrite(PORTB, ESTOP_LED_R, 1);
@@ -93,25 +94,30 @@ void setup() {
   bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
   bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
 
+  //BUZZER as output
+  DDRD |= (1 << PIN_BUZZER);
+  bitWrite(PORTB, PIN_BAT_PWR_CTRL, 0);
 
+  //Initial ESTOP value
   if(!digitalRead(ESTOP_SW)){
     EStopPressed = 1;
   }
   
-  const int interruptFrequency = 1500;
-  TCCR0A = (1<<CTC0) | (1<<CS01); //CTC and 8 prescaler
+  const int interruptFrequency = 1500; //Higher freq does not work
+  TCCR0A = (1<<CTC0) | (1<<CS01); //CTC and 2 prescaler
   TCNT0  = 0; //Counter to zero
   OCR0A = 1000000 / (2 *2 *interruptFrequency) - 1; 
-  // Enable Timer/Counter0 Output Compare Match A Interrupt Enable
-  TIMSK0 |= (1 << OCIE0A);
+  TIMSK0 |= (1 << OCIE0A); // Enable Timer/Counter0 Output Compare Match A Interrupt Enable
 
   
   ADCSRA |= (1 << ADEN) | (0 << ADPS2) | (0 << ADPS1) | (1 << ADPS0);
-  ADMUX |= (1 << REFS0);
-
+  ADCSRB |= (0 << ADTS2) | (0 << ADTS1) | (0 << ADTS0);
+  ADMUX |= (1 << REFS0) | (2 & 0x0F);
+  //ADCSRA |= (1 << ADSC); // Start conversion
+  //ADCSRA |= (1 << ADATE);
   Wire.begin(); // join i2c bus as master
   
-  sei();
+  sei(); //Enable interrupts
 
 }
 
@@ -124,12 +130,20 @@ void loop() {
   delay(10000);
   sendDataOverI2C();
 
+  if(switchingState==CONNECTED_TO_BAT && VBAT<680){
+    beep(1000);
+  }
+
   if (!digitalRead(POWER_SW))
   {
     if (powerState == POWER_OFF)
     {
       bitWrite(PORTD, PIN_DBG_LED_R, 1);
       powerState = POWER_ON;
+      // Buzzer output that system is ON
+      beep(1000);
+      beep(800);
+      beep(600);
     }
     else
     {
@@ -141,26 +155,38 @@ void loop() {
       bitWrite(PORTD, PIN_WALL_PWR_CTRL, 0);
       bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
       bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
+      //Buzzer output that system is OFF
+      beep(600);
+      beep(800);
+      beep(1000);
     }
   }
 }
 
 
+//Custom analogRead, takes ADC channel as input and returns the measured value
 uint16_t ADCRead(uint8_t channel){
+  
   ADMUX = (ADMUX & 0xF0) | (channel & 0x0F); //Select adc channel
-  // Start conversion
-  ADCSRA |= (1 << ADSC);
-  
+  ADCSRA |= (1 << ADSC); // Start conversion
   // Wait for conversion to complete
-  while (ADCSRA & (1 << ADSC));
-  
-  // Read ADCL first
+  while (!(ADCSRA & (1 << ADIF)));
+
   uint8_t low = ADCL;
-  // Then read ADCH
   uint8_t high = ADCH;
-  // Combine low and high
-  return (high << 8) | low;
   
+  return (high << 8) | low; // Combine low and high
+}
+
+void beep(uint16_t note)
+{
+  for (uint8_t i = 0; i < 100; i++)
+  {
+    bitWrite(PORTD, PIN_BUZZER, HIGH);
+    delayMicroseconds(note);
+    bitWrite(PORTD, PIN_BUZZER, LOW);
+    delayMicroseconds(note);
+  }
 }
 
 //Bat off, wall on
@@ -170,7 +196,7 @@ void switchBatToWall(){
   bitWrite(PORTB, PIN_BAT_PWR_CTRL, 0);
   bitWrite(PORTD, PIN_WALL_PWR_CTRL, 1);
  
-  switchingState = CONNECTED_TO_WALL;
+  switchingState = CONNECTED_TO_WALL; //Update the state
 }
 
 //Wall off, bat on
@@ -182,6 +208,7 @@ void switchWallToBat(){
   
   switchingState = CONNECTED_TO_BAT;
 }
+
 
 ISR(TIMER0_COMPA_vect) {
   
@@ -198,8 +225,9 @@ ISR(TIMER0_COMPA_vect) {
 }
 
 
+//Triggers when ESTOP value changes
 ISR(PCINT2_vect) {
-    if(!digitalRead(ESTOP_SW)){ //Button 0 when pressed, RED LED ON
+    if(!digitalRead(ESTOP_SW)){ //Button 0 when pressed, RED LED ON, Power for motors is not allowed
       EStopPressed=1;
       bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
       bitWrite(PORTB, ESTOP_LED_R, 0);
@@ -207,7 +235,7 @@ ISR(PCINT2_vect) {
     }
     else{
       EStopPressed=0;
-      if(switchingState == CONNECTED_TO_BAT){ //GREEN LED ON
+      if(switchingState == CONNECTED_TO_BAT){ //GREEN LED ON, power for is allowed when connected to bat
         bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 1);
         bitWrite(PORTB, ESTOP_LED_R, 1);
         bitWrite(PORTB, ESTOP_LED_G, 0);
@@ -219,6 +247,7 @@ ISR(PCINT2_vect) {
 void sendDataOverI2C(){
 
   //Read currents and send them to STM on request
+  //No need to read Voltage again because interrupt updates them
   uint16_t MtrCurrent = ADCRead(I_MOTORS_SENSE_ADC);
   uint16_t NucCurrent = ADCRead(I_NUC_SENSE_ADC);
   
@@ -237,7 +266,7 @@ void sendDataOverI2C(){
   byteArr[7] = lowByte(VBAT);
 
   Wire.beginTransmission(0x12); //STM'S address
-  Wire.write(byteArr, sizeof(byteArr));
+  Wire.write(byteArr, sizeof(byteArr)); //Send byte array to STM
   Wire.endTransmission();
   
 }
