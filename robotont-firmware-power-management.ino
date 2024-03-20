@@ -140,7 +140,7 @@ void loop() {
   
   
 
-  if (!PwrButton && PwrButton != LastPwrButton){
+  if (!PwrButton && (PwrButton != LastPwrButton)){
     if (powerState == POWER_OFF){
       bitWrite(PORTD, PIN_DBG_LED_R, 1);
       powerState = POWER_ON;
