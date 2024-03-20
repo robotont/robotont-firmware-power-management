@@ -49,6 +49,7 @@ enum SwitchingState{
 enum PowerState powerState = POWER_OFF;
 enum SwitchingState switchingState = INIT;
 uint8_t EStopPressed = 0;
+uint8_t LastPwrButton = 1;
 
 uint16_t V;
 uint16_t VBAT;
@@ -136,7 +137,7 @@ void loop() {
   }
 
   uint8_t PwrButton = digitalRead(POWER_SW);
-  uint8_t LastPwrButton;
+  
   
 
   if (!PwrButton && PwrButton != LastPwrButton){
