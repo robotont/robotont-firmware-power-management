@@ -103,16 +103,17 @@ void setup() {
     EStopPressed = 1;
   }
   
-  const int interruptFrequency = 1500; //Higher freq does not work
-  TCCR0A = (1<<CTC0) | (1<<CS01); //CTC and 2 prescaler
+  const int interruptFrequency = 750;
+  TCCR0A = (1<<CTC0) | (1<<CS01); //CTC and 8 prescaler
   TCNT0  = 0; //Counter to zero
-  OCR0A = 1000000 / (2 *2 *interruptFrequency) - 1; 
+  OCR0A = 1000000 / (8 *interruptFrequency) - 1; 
   TIMSK0 |= (1 << OCIE0A); // Enable Timer/Counter0 Output Compare Match A Interrupt Enable
 
   
   ADCSRA |= (1 << ADEN) | (0 << ADPS2) | (0 << ADPS1) | (1 << ADPS0);
   ADCSRB |= (0 << ADTS2) | (0 << ADTS1) | (0 << ADTS0);
   ADMUX |= (1 << REFS0) | (2 & 0x0F);
+  //Adate üheks panna, mis saab?
   //ADCSRA |= (1 << ADSC); // Start conversion
   //ADCSRA |= (1 << ADATE);
   Wire.begin(); // join i2c bus as master
@@ -134,10 +135,12 @@ void loop() {
     beep(1000);
   }
 
-  if (!digitalRead(POWER_SW))
-  {
-    if (powerState == POWER_OFF)
-    {
+  uint8_t PwrButton = digitalRead(POWER_SW);
+  uint8_t LastPwrButton;
+  
+
+  if (!PwrButton && PwrButton != LastPwrButton){
+    if (powerState == POWER_OFF){
       bitWrite(PORTD, PIN_DBG_LED_R, 1);
       powerState = POWER_ON;
       // Buzzer output that system is ON
@@ -145,8 +148,7 @@ void loop() {
       beep(800);
       beep(600);
     }
-    else
-    {
+    else{
       // Turn power off
       powerState = POWER_OFF;
       switchingState = INIT;
@@ -161,6 +163,7 @@ void loop() {
       beep(1000);
     }
   }
+  LastPwrButton = PwrButton;
 }
 
 
@@ -211,7 +214,6 @@ void switchWallToBat(){
 
 
 ISR(TIMER0_COMPA_vect) {
-  
   if(powerState == POWER_ON){
     V = ADCRead(V_SENSE_ADC); //ADC1
     VBAT = ADCRead(VBAT_SENSE_ADC); //ADC2
@@ -227,18 +229,19 @@ ISR(TIMER0_COMPA_vect) {
 
 //Triggers when ESTOP value changes
 ISR(PCINT2_vect) {
-    if(!digitalRead(ESTOP_SW)){ //Button 0 when pressed, RED LED ON, Power for motors is not allowed
-      EStopPressed=1;
-      bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
-      bitWrite(PORTB, ESTOP_LED_R, 0);
-      bitWrite(PORTB, ESTOP_LED_G, 1);
-    }
-    else{
-      EStopPressed=0;
-      if(switchingState == CONNECTED_TO_BAT){ //GREEN LED ON, power for is allowed when connected to bat
-        bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 1);
-        bitWrite(PORTB, ESTOP_LED_R, 1);
-        bitWrite(PORTB, ESTOP_LED_G, 0);
+    EStopPressed = !digitalRead(ESTOP_SW); //Button 0 when pressed, 
+    if(powerState == POWER_ON){
+      if(EStopPressed == 1){ //RED LED ON, Power for motors is not allowed
+        bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
+        bitWrite(PORTB, ESTOP_LED_R, 0);
+        bitWrite(PORTB, ESTOP_LED_G, 1);
+      }
+      else{
+        if(switchingState == CONNECTED_TO_BAT){ //GREEN LED ON, power for is allowed when connected to bat
+          bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 1);
+          bitWrite(PORTB, ESTOP_LED_R, 1);
+          bitWrite(PORTB, ESTOP_LED_G, 0);
+        }
       }
     }
 }
