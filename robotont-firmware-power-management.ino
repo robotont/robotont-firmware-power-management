@@ -302,9 +302,8 @@ void sendDataOverI2C(){
   
   // Convert the numbers to bytes
   byte byteArr[8];
-  uint16_t millisnow=millis();
-  byteArr[0] = highByte(millisnow);
-  byteArr[1] = lowByte(millisnow);
+  byteArr[0] = highByte(MtrCurrent);
+  byteArr[1] = lowByte(MtrCurrent);
   
   byteArr[2] = highByte(NucCurrent);
   byteArr[3] = lowByte(NucCurrent);
