@@ -26,31 +26,31 @@ For uploading the firmware to the power management microcontroller, the ATTinyCo
 ### Installing the ATTinyCore library
 
 In Arduino IDE, go to File -> Preferences -> Additional boards manager URLs and add the following URL:
-  
+
   ```
   https://raw.githubusercontent.com/damellis/attiny/ide-1.6.x-boards-manager/package_damellis_attiny_index.json
   ```
     
-    Then go to Tools -> Board -> Boards Manager and search for "ATTinyCore" and install it.
+Then go to *Tools* -> *Board* -> *Boards Manager* and search for "ATTinyCore" and install it.
 
 ### Selecting the board and the programmer settings
 
 Under Tools menu, select the following settings:
 
-- Board -> ATTinyCore -> ATtiny48/88(No bootloader)
+- *Board* -> *ATTinyCore* -> *ATtiny48/88(No bootloader)*
 
-- Chip -> ATtiny88
+- *Chip* -> *ATtiny88*
 
-- Clock Source -> 1 MHz (internal)
+- *Clock Source* -> *1 MHz (internal)*
 
-- Pin mapping -> Standard
+- *Pin mapping* -> *Standard*
 
-- LTO -> Enabled
+- *LTO* -> *Enabled*
 
-- Programmer -> Arduino as ISP
+- *Programmer* -> *Arduino as ISP*
 
 ### Uploading
 For uploading the firmware to the power management microcontroller, open the firmware sketch localed in this repository with the Arduino IDE and go to:
-- Sketch -> Upload Using Programmer
+- *Sketch* -> *Upload Using Programmer*
 
 Once the firmware has been uploaded, the ATTiny88 microcontroller resets and the firmware starts running.
