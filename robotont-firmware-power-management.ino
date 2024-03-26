@@ -36,7 +36,7 @@
 #define POWER_SW PD2
 #define ESTOP_SW PD3
 
-#define F_CPU 1000000UL
+#define F_CPU 4000000UL
 
 enum PowerState{
   POWER_OFF,
@@ -109,8 +109,7 @@ void setup() {
     EStopPressed = 1;
   }
   
-
-  const int interruptFrequency = 1500UL;
+  const int interruptFrequency = 1000UL;
   
   TCCR1A &= 0;
   TCCR1B |= (0 << CS12) | (1 << CS11) | (0 << CS10) | (1 << WGM12); //CTC and 8 pre
@@ -119,7 +118,7 @@ void setup() {
   TIMSK1 |= (1 << OCIE1A); //Enable interrupt
 
   
-  ADCSRA |= (1 << ADEN) | (1 << ADIE) | (1 << ADPS2) | (0 << ADPS1) | (1 << ADPS0); //Prescaler needs testing
+  ADCSRA |= (1 << ADEN) | (1 << ADIE) | (1 << ADPS2) | (0 << ADPS1) | (0 << ADPS0); //Prescaler 16
   ADCSRB &= (0 << ADTS2) | (0 << ADTS1) | (0 << ADTS0);
   ADMUX |= (1 << REFS0);
   
@@ -133,51 +132,64 @@ void setup() {
 
 unsigned long currentTime;
 unsigned long prevTime=0;
+
 unsigned long ledInterval=500; //milliseconds
+unsigned long beepInterval=100;
+unsigned long powerOnTime=750;
+unsigned long powerOffTime=2000;
+
+unsigned long pwrButtonTimer=millis();
 uint8_t ledState=0;
+
 void loop() {
 
 
   currentTime = millis();
 
-  if(currentTime-prevTime>ledInterval){
+  if(currentTime-prevTime > ledInterval){
     prevTime=currentTime;
     bitWrite(PORTD, PIN_DBG_LED_G, ledState);
     ledState=!ledState;
+    if(VBAT<680 && switchingState==CONNECTED_TO_BAT){
+      beep(1000);
+    }
+  }
+
+  
+  if(currentTime-prevTime > 100){
     sendDataOverI2C();
   }
 
-  if(switchingState==CONNECTED_TO_BAT && VBAT<680){
-    beep(1000);
-  }
-
   uint8_t PwrButton = digitalRead(POWER_SW);
-  
-  if (!PwrButton && (PwrButton != LastPwrButton)){
-    if (powerState == POWER_OFF){
-      bitWrite(PORTD, PIN_DBG_LED_R, 1);
-      powerState = POWER_ON;
-      // Buzzer output that system is ON
-      beep(1000);
-      beep(800);
-      beep(600);
-    }
-    else{
-      // Turn power off
-      powerState = POWER_OFF;
-      switchingState = INIT;
-      bitWrite(PORTD, PIN_DBG_LED_R, 0);
-      bitWrite(PORTB, PIN_BAT_PWR_CTRL, 0);
-      bitWrite(PORTD, PIN_WALL_PWR_CTRL, 0);
-      bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
-      bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
-      //Buzzer output that system is OFF
-      beep(600);
-      beep(800);
-      beep(1000);
-    }
+  if(PwrButton){
+    pwrButtonTimer = millis();
   }
-  LastPwrButton = PwrButton;
+  currentTime = millis();
+  if (currentTime - pwrButtonTimer > powerOnTime && powerState == POWER_OFF){
+    bitWrite(PORTD, PIN_DBG_LED_R, 1);
+    powerState = POWER_ON;
+    // Buzzer output that system is ON
+    beep(1000);
+    beep(800);
+    beep(600);
+    pwrButtonTimer = millis();
+  }
+  else if (currentTime - pwrButtonTimer > powerOffTime && powerState == POWER_ON){
+    // Turn power off
+    powerState = POWER_OFF;
+    switchingState = INIT;
+    bitWrite(PORTD, PIN_DBG_LED_R, 0);
+    bitWrite(PORTB, PIN_BAT_PWR_CTRL, 0);
+    bitWrite(PORTD, PIN_WALL_PWR_CTRL, 0);
+    bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
+    bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
+    //Buzzer output that system is OFF
+    beep(600);
+    beep(800);
+    beep(1000);
+    pwrButtonTimer = millis();
+  }
+  
 }
 
 void beep(uint16_t note)
@@ -235,7 +247,7 @@ ISR(ADC_vect){
   }
   else if (ADCchannel == Vchannel){ //V TO VBAT
     V = ADC_value;
-    if(ADC_ISR_Counter < 100){ 
+    if(ADC_ISR_Counter < 200){ 
       ADMUX = (ADMUX & 0xF0) | (VBAT_SENSE_ADC & 0x0F);
       ADCchannel = VBATchannel;
     }
@@ -255,8 +267,9 @@ ISR(ADC_vect){
     ADCchannel = VBATchannel;
     ADC_ISR_Counter=0;
   }
-  
+                
   ADCSRA |= (1 << ADSC);
+                                              
 }
 
 ISR(TIMER1_COMPA_vect) {
@@ -292,14 +305,7 @@ ISR(PCINT2_vect) {
 }
 
 
-void sendDataOverI2C(){
-
-  //Read currents and send them to STM on request
-  //No need to read Voltage again because interrupt updates them
-  //uint16_t MtrCurrent = ADCRead(I_MOTORS_SENSE_ADC);
-  //uint16_t NucCurrent = ADCRead(I_NUC_SENSE_ADC);
-  
-  
+void sendDataOverI2C(){ 
   // Convert the numbers to bytes
   byte byteArr[8];
   byteArr[0] = highByte(MtrCurrent);
