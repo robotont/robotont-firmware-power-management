@@ -36,7 +36,7 @@
 #define POWER_SW PD2
 #define ESTOP_SW PD3
 
-#define F_CPU 4000000UL
+#define F_CPU 8000000UL
 
 enum PowerState{
   POWER_OFF,
@@ -109,7 +109,7 @@ void setup() {
     EStopPressed = 1;
   }
   
-  const int interruptFrequency = 1000UL;
+  const int interruptFrequency = 3000UL;
   
   TCCR1A &= 0;
   TCCR1B |= (0 << CS12) | (1 << CS11) | (0 << CS10) | (1 << WGM12); //CTC and 8 pre
@@ -118,7 +118,7 @@ void setup() {
   TIMSK1 |= (1 << OCIE1A); //Enable interrupt
 
   
-  ADCSRA |= (1 << ADEN) | (1 << ADIE) | (1 << ADPS2) | (0 << ADPS1) | (0 << ADPS0); //Prescaler 16
+  ADCSRA |= (1 << ADEN) | (1 << ADIE) | (0 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); //Prescaler 8
   ADCSRB &= (0 << ADTS2) | (0 << ADTS1) | (0 << ADTS0);
   ADMUX |= (1 << REFS0);
   
