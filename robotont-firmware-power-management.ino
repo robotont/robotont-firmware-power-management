@@ -49,8 +49,18 @@ enum SwitchingState{
   CONNECTED_TO_BAT
 };
 
+enum ADCChannelState{
+  Vchannel,
+  VBATchannel,
+  NUCchannel,
+  MTRchannel
+};
+
 enum PowerState powerState = POWER_OFF;
 enum SwitchingState switchingState = INIT;
+enum ADCChannelState ADCchannel = Vchannel;
+
+uint8_t ADC_ISR_Counter = 0;
 uint8_t EStopPressed = 0;
 uint8_t LastPwrButton = 1;
 
@@ -58,6 +68,20 @@ uint16_t V;
 uint16_t VBAT;
 uint16_t MtrCurrent;
 uint16_t NucCurrent;
+
+//Loop timer variables
+unsigned long ledInterval=500; //Interval for led blinking (milliseconds)
+unsigned long i2cInterval=100; //Interval for i2c communication (milliseconds)
+unsigned long powerOnTime=600; //How long you need to press the power button to turn on robot (milliseconds)
+unsigned long powerOffTime=1200; //How long you need to press the power button to turn off robot (milliseconds)
+
+unsigned long startTimeforLed;
+unsigned long startTimeforI2C;
+unsigned long startTimeforPwrButton;
+unsigned long prevTimeforLed=0;
+unsigned long prevTimeforI2c=0;
+unsigned long pwrButtonTimer=millis();
+uint8_t ledState=0;
 
 void setup() {
   
@@ -130,24 +154,8 @@ void setup() {
 
 }
 
-unsigned long startTimeforLed;
-unsigned long startTimeforI2C;
-unsigned long startTimeforPwrButton;
-
-unsigned long prevTimeforLed=0;
-unsigned long prevTimeforI2c=0;
-
-unsigned long ledInterval=500; //milliseconds
-unsigned long i2cInterval=100;
-unsigned long beepInterval=100;
-unsigned long powerOnTime=600;
-unsigned long powerOffTime=1200;
-
-unsigned long pwrButtonTimer=millis();
-uint8_t ledState=0;
 
 void loop() {
-
 
   startTimeforLed = millis();
 
@@ -230,15 +238,6 @@ void switchWallToBat(){
   switchingState = CONNECTED_TO_BAT;
 }
 
-enum ADCChannelState{
-  Vchannel,
-  VBATchannel,
-  NUCchannel,
-  MTRchannel
-};
-
-enum ADCChannelState ADCchannel = Vchannel;
-uint8_t ADC_ISR_Counter = 0;
 
 ISR(ADC_vect){
 
@@ -310,7 +309,6 @@ ISR(PCINT2_vect) {
       }
     }
 }
-
 
 void sendDataOverI2C(){ 
   // Convert the numbers to bytes
