@@ -130,13 +130,18 @@ void setup() {
 
 }
 
-unsigned long currentTime;
-unsigned long prevTime=0;
+unsigned long startTimeforLed;
+unsigned long startTimeforI2C;
+unsigned long startTimeforPwrButton;
+
+unsigned long prevTimeforLed=0;
+unsigned long prevTimeforI2c=0;
 
 unsigned long ledInterval=500; //milliseconds
+unsigned long i2cInterval=100;
 unsigned long beepInterval=100;
-unsigned long powerOnTime=750;
-unsigned long powerOffTime=2000;
+unsigned long powerOnTime=600;
+unsigned long powerOffTime=1200;
 
 unsigned long pwrButtonTimer=millis();
 uint8_t ledState=0;
@@ -144,10 +149,10 @@ uint8_t ledState=0;
 void loop() {
 
 
-  currentTime = millis();
+  startTimeforLed = millis();
 
-  if(currentTime-prevTime > ledInterval){
-    prevTime=currentTime;
+  if(startTimeforLed-prevTimeforLed > ledInterval){
+    prevTimeforLed=startTimeforLed;
     bitWrite(PORTD, PIN_DBG_LED_G, ledState);
     ledState=!ledState;
     if(VBAT<680 && switchingState==CONNECTED_TO_BAT){
@@ -155,17 +160,19 @@ void loop() {
     }
   }
 
-  
-  if(currentTime-prevTime > 100){
+  startTimeforI2C = millis();
+  if(startTimeforI2C-prevTimeforI2c > i2cInterval){
+    prevTimeforI2c = startTimeforI2C;
     sendDataOverI2C();
   }
 
+  
   uint8_t PwrButton = digitalRead(POWER_SW);
   if(PwrButton){
     pwrButtonTimer = millis();
   }
-  currentTime = millis();
-  if (currentTime - pwrButtonTimer > powerOnTime && powerState == POWER_OFF){
+  startTimeforPwrButton = millis();
+  if (startTimeforPwrButton - pwrButtonTimer > powerOnTime && powerState == POWER_OFF){
     bitWrite(PORTD, PIN_DBG_LED_R, 1);
     powerState = POWER_ON;
     // Buzzer output that system is ON
@@ -174,7 +181,7 @@ void loop() {
     beep(600);
     pwrButtonTimer = millis();
   }
-  else if (currentTime - pwrButtonTimer > powerOffTime && powerState == POWER_ON){
+  else if (startTimeforPwrButton - pwrButtonTimer > powerOffTime && powerState == POWER_ON){
     // Turn power off
     powerState = POWER_OFF;
     switchingState = INIT;
