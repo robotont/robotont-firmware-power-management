@@ -187,6 +187,16 @@ void loop() {
     beep(1000);
     beep(800);
     beep(600);
+    
+    if(EStopPressed == 1){
+      bitWrite(PORTB, ESTOP_LED_R, 0);
+      bitWrite(PORTB, ESTOP_LED_G, 1);
+    }
+    else{
+      bitWrite(PORTB, ESTOP_LED_R, 1);
+      bitWrite(PORTB, ESTOP_LED_G, 0);
+    }
+    
     pwrButtonTimer = millis();
   }
   else if (startTimeforPwrButton - pwrButtonTimer > powerOffTime && powerState == POWER_ON){
@@ -198,7 +208,10 @@ void loop() {
     bitWrite(PORTD, PIN_WALL_PWR_CTRL, 0);
     bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
     bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
-    //Buzzer output that system is OFF
+    //ESTOP LEDS OFF TO SAVE BAT
+    bitWrite(PORTB, ESTOP_LED_R, 1);
+    bitWrite(PORTB, ESTOP_LED_G, 1);
+    //Buzzer output, system is OFF
     beep(600);
     beep(800);
     beep(1000);
@@ -295,20 +308,24 @@ ISR(TIMER1_COMPA_vect) {
 ISR(PCINT2_vect) {
     EStopPressed = !digitalRead(ESTOP_SW); //Button 0 when pressed, 
     if(powerState == POWER_ON){
-      if(EStopPressed == 1){ //RED LED ON, Power for motors is not allowed
-        bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
-        bitWrite(PORTB, ESTOP_LED_R, 0);
-        bitWrite(PORTB, ESTOP_LED_G, 1);
-      }
-      else{
-        if(switchingState == CONNECTED_TO_BAT){ //GREEN LED ON, power for is allowed when connected to bat
-          bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 1);
-          bitWrite(PORTB, ESTOP_LED_R, 1);
-          bitWrite(PORTB, ESTOP_LED_G, 0);
+        if(EStopPressed == 1){ //RED LED ON, Power for motors is not allowed
+          bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
+          bitWrite(PORTB, ESTOP_LED_R, 0);
+          bitWrite(PORTB, ESTOP_LED_G, 1);
         }
-      }
+        else{ //ESTOP NOT PRESSED
+          if(switchingState == CONNECTED_TO_BAT){ //GREEN LED ON, power motors for is allowed when connected to bat
+            bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 1);
+            bitWrite(PORTB, ESTOP_LED_R, 1);
+            bitWrite(PORTB, ESTOP_LED_G, 0);
+          }
+        }
+    }else{ //if sys is off, the leds are off
+      bitWrite(PORTB, ESTOP_LED_R, 1);
+      bitWrite(PORTB, ESTOP_LED_G, 1);
     }
 }
+
 
 void sendDataOverI2C(){ 
   // Convert the numbers to bytes
