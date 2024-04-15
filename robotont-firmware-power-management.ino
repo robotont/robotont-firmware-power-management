@@ -294,10 +294,12 @@ ISR(ADC_vect){
 ISR(TIMER1_COMPA_vect) {
   
   if(powerState == POWER_ON){
-    if(V >= VBAT && (switchingState !=  CONNECTED_TO_BAT)){
+    //We dont need VBAT here right now
+    //Added 680 for reference value as placeholder
+    if(V >= 680 && (switchingState !=  CONNECTED_TO_BAT)){
       switchBatToWall();
     }
-    else if(V < VBAT && (switchingState != CONNECTED_TO_WALL)){
+    else if(V < 680 && (switchingState != CONNECTED_TO_WALL)){
       switchWallToBat();
     }
   }
