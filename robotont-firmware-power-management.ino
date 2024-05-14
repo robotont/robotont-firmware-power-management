@@ -308,6 +308,7 @@ ISR(TIMER1_COMPA_vect) {
 
 //Triggers when ESTOP value changes
 ISR(PCINT2_vect) {
+    beep(800);
     EStopPressed = !digitalRead(ESTOP_SW); //Button 0 when pressed, 
     if(powerState == POWER_ON){
         if(EStopPressed == 1){ //RED LED ON, Power for motors is not allowed
