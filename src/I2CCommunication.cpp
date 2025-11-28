@@ -4,13 +4,15 @@
 I2CCommunication::I2CCommunication() {}
 
 void I2CCommunication::begin() {
+  
   Wire.begin();
 }
 
-void I2CCommunication::sendData(const SensorData& sensorData, const BatteryDebugData& batteryData) {
-  byte dataPacket[16];
+void I2CCommunication::sendData(const SensorData& sensorData, const BatteryData& batteryData) {
+  byte dataPacket[24];
   
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    // Pack sensor data
     dataPacket[0] = highByte(sensorData.motorCurrent);
     dataPacket[1] = lowByte(sensorData.motorCurrent);
     dataPacket[2] = highByte(sensorData.nucCurrent);
@@ -19,18 +21,25 @@ void I2CCommunication::sendData(const SensorData& sensorData, const BatteryDebug
     dataPacket[5] = lowByte(sensorData.voltage);
     dataPacket[6] = highByte(sensorData.batteryVoltage);
     dataPacket[7] = lowByte(sensorData.batteryVoltage);
-    
-    for (uint8_t i = 0; i < 8; i++) {
-      dataPacket[8 + i] = batteryData.data[i];
+    // Pack battery data
+    dataPacket[8]  = highByte(batteryData.packVoltage);
+    dataPacket[9]  = lowByte(batteryData.packVoltage);
+    for (uint8_t i = 0; i < 5; i++) {
+      dataPacket[10 + i * 2]     = highByte(batteryData.cellVoltages[i]);
+      dataPacket[11 + i * 2]     = lowByte(batteryData.cellVoltages[i]);
+    }
+    for (uint8_t i = 0; i < 2; i++) {
+      dataPacket[20 + i * 2]     = highByte(batteryData.temperatures[i]);
+      dataPacket[21 + i * 2]     = lowByte(batteryData.temperatures[i]);
     }
   }
-  
+
   for (uint8_t attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
     if (attemptTransmission(dataPacket, sizeof(dataPacket))) {
       return;
     }
     recoverBus();
-    delay(10);
+    delay(500);
   }
 }
 

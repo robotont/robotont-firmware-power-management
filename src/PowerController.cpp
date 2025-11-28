@@ -4,12 +4,25 @@
 extern UserInterface ui;
 
 PowerController::PowerController()
-  : state(POWER_OFF), switchingState(CONNECTED_TO_BATTERY), buttonPressStartTime(0),
-    eStopPreviousState(false), actionTaken(false) {}
+  : state(POWER_OFF), buttonPressStartTime(0),
+    stopBtnPreviousState(false), wallPowerPreviousState(false), actionTaken(false) {}
 
 void PowerController::begin() {
   setupPins();
   buttonPressStartTime = millis();
+  
+  // Read initial states
+  bool stopBtn = !(PIND & (1 << PIN_STOPBTN_SW));
+  bool wallPower = (PINB & (1 << PIN_PWR_SRC_SENSE));
+  
+  stopBtnPreviousState = stopBtn;
+  wallPowerPreviousState = wallPower;
+  
+  // Set initial LED state (system is OFF)
+  ui.setStopBtnLED(UserInterface::OFF);
+  
+  // Call update once to sync state
+  update(millis(), stopBtn, wallPower);
 }
 
 void PowerController::setupPins() {
@@ -19,26 +32,59 @@ void PowerController::setupPins() {
   bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
 }
 
-void PowerController::update(unsigned long currentTime, bool eStopPressed) {
-  // Track E-stop state changes
-  bool eStopChanged = (eStopPressed != eStopPreviousState);
-  eStopPreviousState = eStopPressed;
+void PowerController::update(unsigned long currentTime, bool stopBtnPressed, bool wallPowerPresent) {
+  bool stopBtnChanged = (stopBtnPressed != stopBtnPreviousState);
+  stopBtnPreviousState = stopBtnPressed;
+  
+  bool wallPowerChanged = (wallPowerPresent != wallPowerPreviousState);
+  wallPowerPreviousState = wallPowerPresent;
   
   handlePowerButton(currentTime);
   
   if (state == POWER_ON) {
-    handlePowerSourceMonitoring(eStopPressed);
-    
-    if (eStopChanged) {
-      if (eStopPressed) {
-        bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
-        ui.playBeep(BEEP_FREQ_MED);
-        ui.updateEStopLED(true);
-      } else if (switchingState == CONNECTED_TO_BATTERY) {
-        bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 1);
-        ui.playBeep(BEEP_FREQ_MED);
-        ui.updateEStopLED(false);
+    if (wallPowerChanged) {
+      if (wallPowerPresent) {
+        // Switched to wall power: motors OFF
+        motorPowerOff();
+        ui.playBeep(BEEP_FREQ_HIGH, 150);
+        ui.playBeep(BEEP_FREQ_LOW, 150);
+        delay(100);
+        // Final beep matches LED state
+        if (stopBtnPressed) {
+          ui.playBeep(BEEP_FREQ_LOW, 100);  // RED LED - motors disabled
+        } else {
+          ui.playBeep(BEEP_FREQ_MED, 100);  // YELLOW LED - motors disabled
+        }
+      } else {
+        // Switched to battery
+        motorPowerOff();  // Turn off first, then check if should enable
+        ui.playBeep(BEEP_FREQ_LOW, 150);
+        ui.playBeep(BEEP_FREQ_HIGH, 150);
+        delay(100);
+        if (stopBtnPressed) {
+          ui.playBeep(BEEP_FREQ_LOW, 100);  // RED LED - motors disabled
+        } else {
+          motorPowerOn();  // Enable motors
+          ui.playBeep(BEEP_FREQ_HIGH, 100);  // GREEN LED - motors enabled
+        }
       }
+      
+      updateStopBtnLED(stopBtnPressed, wallPowerPresent);
+    }
+    else if (stopBtnChanged) {
+      // Stop button changed without power source change
+      if (stopBtnPressed) {
+        motorPowerOff();
+        ui.playBeep(BEEP_FREQ_LOW, 150);  // RED LED - motors disabled
+      } else {
+        if (!wallPowerPresent) {
+          motorPowerOn();
+          ui.playBeep(BEEP_FREQ_HIGH, 150);  // GREEN LED - motors enabled
+        } else {
+          ui.playBeep(BEEP_FREQ_MED, 150);  // YELLOW LED - motors disabled (wall power)
+        }
+      }
+      updateStopBtnLED(stopBtnPressed, wallPowerPresent);
     }
   }
 }
@@ -59,10 +105,10 @@ void PowerController::handlePowerButton(unsigned long currentTime) {
   unsigned long releasedDuration = currentTime - buttonPressStartTime;
   
   if (state == POWER_OFF && releasedDuration >= POWER_ON_HOLD_TIME) {
-    powerOn(eStopPreviousState);
+    sysPowerOn(stopBtnPreviousState, wallPowerPreviousState);
     actionTaken = true;
   } else if (state == POWER_ON && releasedDuration >= POWER_OFF_HOLD_TIME) {
-    powerOff();
+    sysPowerOff();
     actionTaken = true;
   }
 }
@@ -71,54 +117,54 @@ bool PowerController::isPowerButtonPressed() {
   return (PIND & (1 << PIN_POWER_SW)) != 0;
 }
 
-void PowerController::powerOn(bool eStopPressed) {
+
+
+void PowerController::sysPowerOn(bool stopBtnPressed, bool wallPowerPresent) {
   state = POWER_ON;
-  bitWrite(PORTD, PIN_DBG_LED_R, 1);
-  ui.playBeep(BEEP_FREQ_HIGH);
-  ui.playBeep(BEEP_FREQ_MED);
-  ui.playBeep(BEEP_FREQ_LOW);
-  ui.updateEStopLED(eStopPressed);
+  bitWrite(PORTA, PIN_SYS_PWR_CTRL, 1);
   
-  // Immediately switch to appropriate power source
-  bool wallPowerPresent = (PINB & (1 << PIN_PWR_SRC_SENSE));
-  if (wallPowerPresent) {
-    switchToWall();
-  } else {
-    switchToBattery(eStopPressed);
+  ui.setDebugLED(true);
+  updateStopBtnLED(stopBtnPressed, wallPowerPresent);
+  
+  if (!wallPowerPresent && !stopBtnPressed) {
+    motorPowerOn();
+  }
+  
+  // Ascending sweep: system starting up
+  for (uint16_t i = 500; i <= 1500; i += 50) {
+    ui.playBeep(i, 20);
   }
 }
 
-void PowerController::powerOff() {
+void PowerController::sysPowerOff() {
   state = POWER_OFF;
-  switchingState = CONNECTED_TO_BATTERY;
-  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
+  motorPowerOff();
   bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
-  bitWrite(PORTD, PIN_DBG_LED_R, 0);
-  bitWrite(PORTB, PIN_ESTOP_LED_R, 1);  // Both OFF
-  bitWrite(PORTB, PIN_ESTOP_LED_G, 1);
-  ui.playBeep(BEEP_FREQ_LOW);
-  ui.playBeep(BEEP_FREQ_MED);
-  ui.playBeep(BEEP_FREQ_HIGH);
-}
-
-void PowerController::switchToBattery(bool eStopPressed) {
-  bitWrite(PORTA, PIN_SYS_PWR_CTRL, 1);
-  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, !eStopPressed);
-  switchingState = CONNECTED_TO_BATTERY;
-}
-
-void PowerController::switchToWall() {
-  bitWrite(PORTA, PIN_SYS_PWR_CTRL, 1);
-  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
-  switchingState = CONNECTED_TO_WALL;
-}
-
-void PowerController::handlePowerSourceMonitoring(bool eStopPressed) {
-  bool wallPowerPresent = (PINB & (1 << PIN_PWR_SRC_SENSE));
   
-  if (wallPowerPresent && switchingState != CONNECTED_TO_WALL) {
-    switchToWall();
-  } else if (!wallPowerPresent && switchingState != CONNECTED_TO_BATTERY) {
-    switchToBattery(eStopPressed);
+  ui.setDebugLED(false);
+  updateStopBtnLED(false, false);  // OFF state
+  
+  // Descending: system shutting down
+  // Ascending sweep: system starting up
+  for (uint16_t i = 1500; i >= 500; i -= 50) {
+    ui.playBeep(i, 20);
+  }
+}
+
+void PowerController::motorPowerOn() {
+  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 1);
+}
+
+void PowerController::motorPowerOff() {
+  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
+}
+
+void PowerController::updateStopBtnLED(bool stopBtnPressed, bool wallPowerPresent) {
+  if (stopBtnPressed) {
+    ui.setStopBtnLED(UserInterface::RED);
+  } else if (wallPowerPresent) {
+    ui.setStopBtnLED(UserInterface::YELLOW);
+  } else {
+    ui.setStopBtnLED(UserInterface::GREEN);
   }
 }

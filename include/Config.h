@@ -13,11 +13,11 @@
 #define PIN_VBAT_SENSE 2         // PC2
 
 #define PIN_POWER_SW 2           // PD2
-#define PIN_ESTOP_SW 3           // PD3
+#define PIN_STOPBTN_SW 3         // PD3
 #define PIN_DBG_LED_G 5          // PD5
 #define PIN_DBG_LED_R 6          // PD6
-#define PIN_ESTOP_LED_R 1        // PB1
-#define PIN_ESTOP_LED_G 2        // PB2
+#define PIN_STOPBTN_LED_R 1      // PB1
+#define PIN_STOPBTN_LED_G 2      // PB2
 #define PIN_BUZZER 0             // PD0
 
 #define PIN_V_SENSE_ADC 1        // PC1 (ADC1)
@@ -26,8 +26,8 @@
 #define PIN_I_NUC_SENSE_ADC 3    // PC3 (ADC3)
 #define PIN_PWR_SRC_SENSE 7      // PB7
 
-#define PIN_BAT_EN 7             // PD7
-#define PIN_BAT_DATA 8           // PB0
+#define PIN_BAT_EN 7             // PD7, arduino pin 7
+#define PIN_BAT_DATA 8           // PB0, arduino pin 8
 
 // Timing Constants
 #define POWER_ON_HOLD_TIME 600
@@ -44,9 +44,9 @@
 #define SCL_PORT PORTC
 #define SCL_MASK (1 << PC5)
 
-// Audio Frequencies
+// Audio Frequencies (Hz)
 #define BEEP_FREQ_HIGH 1000
 #define BEEP_FREQ_MED 800
-#define BEEP_FREQ_LOW 600
+#define BEEP_FREQ_LOW 500
 
 #endif

@@ -7,11 +7,15 @@
 
 class UserInterface {
 public:
+  enum StopBtnLEDState { OFF, GREEN, YELLOW, RED };
+  
   UserInterface();
   void begin();
   void updateStatusLED();
-  void updateEStopLED(bool eStopPressed);
-  void playBeep(uint16_t frequency);
+  void setStopBtnLED(StopBtnLEDState state);
+  void setStatusLED(bool on);
+  void setDebugLED(bool on);
+  void playBeep(uint16_t frequencyHz, uint16_t durationMs = 100);
   
 private:
   bool statusLEDState;

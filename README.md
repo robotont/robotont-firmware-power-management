@@ -54,3 +54,28 @@ For uploading the firmware to the power management microcontroller, open the fir
 - *Sketch* -> *Upload Using Programmer*
 
 Once the firmware has been uploaded, the ATTiny88 microcontroller resets and the firmware starts running.
+
+
+## Firmware functionality
+The firmware is responsible for monitoring the battery status, managing power switching, and communicating with the main controller via I2C protocol. UI elements such as power button, buzzer, and status LEDs are used to provide user feedback. The firmware reads voltage and current sensors, as well as the battery pack info and sends this information to the main controller for further processing.
+
+### I2C Data Packet Structure
+
+**Total size: 24 bytes (all values big-endian uint16_t)**
+
+| Bytes | Field | Description |
+|-------|-------|-------------|
+| 0-1 | Motor Current | Motor current reading |
+| 2-3 | NUC Current | NUC current reading |
+| 4-5 | Voltage | System voltage |
+| 6-7 | Battery Voltage | Battery voltage |
+| 8-9 | Pack Voltage | Battery pack total voltage |
+| 10-19 | Cell Voltages[5] | Individual cell voltages (5 cells × 2 bytes) |
+| 20-21 | Cell Temperature | Temperature measured from the cells (Degrees Celcius) |
+| 22-23 | Mosfet Temperature | Temperature measured from the mosfet (Degrees Celcius) |
+
+
+#### Notes
+
+- All values are 16-bit unsigned integers in big-endian format (high byte first).
+- The data packet is sent periodically (every 100 ms) to the main controller.

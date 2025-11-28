@@ -22,18 +22,20 @@ public:
   uint16_t getBatteryVoltage() const { return batteryVoltage; }
   uint16_t getNucCurrent() const { return nucCurrent; }
   uint16_t getMotorCurrent() const { return motorCurrent; }
-  bool getEStopPressed() const { return eStopPressed; }
-  SensorData getAllReadings() const;
-  
+  bool getStopBtnPressed() const { return stopBtnPressed; }
+  bool getWallPowerPresent() const { return wallPowerPresent; }
+  SensorData getData() const;
+
   volatile uint16_t voltage;
   volatile uint16_t batteryVoltage;
   volatile uint16_t nucCurrent;
   volatile uint16_t motorCurrent;
-  volatile bool eStopPressed;
+  volatile bool stopBtnPressed;
+  volatile bool wallPowerPresent;
   volatile ADCChannelState currentChannel;
-  volatile uint8_t adcCounter;
   
   void selectADCChannel(uint8_t channel);
+
   
 private:
   void setupADC();

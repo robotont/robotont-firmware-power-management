@@ -11,7 +11,7 @@ class I2CCommunication {
 public:
   I2CCommunication();
   void begin();
-  void sendData(const SensorData& sensorData, const BatteryDebugData& batteryData);
+  void sendData(const SensorData& sensorData, const BatteryData& batteryData);
   
 private:
   static const uint8_t MAX_RETRY_ATTEMPTS = 3;
