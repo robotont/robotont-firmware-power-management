@@ -3,31 +3,35 @@
 
 #include <Arduino.h>
 #include "Config.h"
-
-enum PowerState { POWER_OFF, POWER_ON };
+#include "SensorManager.h"
 
 class PowerController {
 public:
   PowerController();
-  void begin();
-  void update(unsigned long currentTime, bool stopBtnPressed, bool wallPowerPresent);
-  PowerState getState() const { return state; }
+  void begin(SensorManager& sensors);
+  void update(unsigned long currentTime, SensorManager& sensors);
+  bool isSysPowerOn() const { return sysPowerOn; }
   
 private:
-  PowerState state;
+  bool sysPowerOn;
+  bool motorPowerOn;
+  uint8_t prevStatus;
   unsigned long buttonPressStartTime;
-  bool stopBtnPreviousState;
-  bool wallPowerPreviousState;
   bool actionTaken;
   
   void setupPins();
-  void sysPowerOn(bool stopBtnPressed, bool wallPowerPresent);
-  void sysPowerOff();
-  void motorPowerOn();
-  void motorPowerOff();
-  void handlePowerButton(unsigned long currentTime);
-  void updateStopBtnLED(bool stopBtnPressed, bool wallPowerPresent);
-  bool isPowerButtonPressed();
+  void handlePowerButton(unsigned long currentTime, uint8_t status, SensorManager& sensors);
+  void handleStatusChanges(uint8_t status, uint8_t changed, SensorManager& sensors);
+  
+  void setSysPower(bool on, SensorManager& sensors);
+  void setMotorPower(bool on, SensorManager& sensors);
+  void updateStopBtnLED(uint8_t status);
+  
+  void playPowerOnSound();
+  void playPowerOffSound();
+  void playWallPowerConnectSound(uint8_t status);
+  void playWallPowerDisconnectSound(uint8_t status);
+  void playStopBtnSound(uint8_t status);
 };
 
 #endif

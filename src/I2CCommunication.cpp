@@ -4,33 +4,38 @@
 I2CCommunication::I2CCommunication() {}
 
 void I2CCommunication::begin() {
-  
   Wire.begin();
 }
 
 void I2CCommunication::sendData(const SensorData& sensorData, const BatteryData& batteryData) {
-  byte dataPacket[24];
+  byte dataPacket[25];
   
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-    // Pack sensor data
-    dataPacket[0] = highByte(sensorData.motorCurrent);
-    dataPacket[1] = lowByte(sensorData.motorCurrent);
-    dataPacket[2] = highByte(sensorData.nucCurrent);
-    dataPacket[3] = lowByte(sensorData.nucCurrent);
-    dataPacket[4] = highByte(sensorData.voltage);
-    dataPacket[5] = lowByte(sensorData.voltage);
-    dataPacket[6] = highByte(sensorData.batteryVoltage);
-    dataPacket[7] = lowByte(sensorData.batteryVoltage);
-    // Pack battery data
-    dataPacket[8]  = highByte(batteryData.packVoltage);
-    dataPacket[9]  = lowByte(batteryData.packVoltage);
+    // Byte 0: Status byte (contains all state flags)
+    dataPacket[0] = sensorData.status;
+    
+    // Bytes 1-8: Analog sensor data
+    dataPacket[1] = highByte(sensorData.motorCurrent);
+    dataPacket[2] = lowByte(sensorData.motorCurrent);
+    dataPacket[3] = highByte(sensorData.nucCurrent);
+    dataPacket[4] = lowByte(sensorData.nucCurrent);
+    dataPacket[5] = highByte(sensorData.voltage);
+    dataPacket[6] = lowByte(sensorData.voltage);
+    dataPacket[7] = highByte(sensorData.batteryVoltage);
+    dataPacket[8] = lowByte(sensorData.batteryVoltage);
+    
+    // Bytes 9-20: Battery pack data
+    dataPacket[9]  = highByte(batteryData.packVoltage);
+    dataPacket[10] = lowByte(batteryData.packVoltage);
     for (uint8_t i = 0; i < 5; i++) {
-      dataPacket[10 + i * 2]     = highByte(batteryData.cellVoltages[i]);
-      dataPacket[11 + i * 2]     = lowByte(batteryData.cellVoltages[i]);
+      dataPacket[11 + i * 2] = highByte(batteryData.cellVoltages[i]);
+      dataPacket[12 + i * 2] = lowByte(batteryData.cellVoltages[i]);
     }
+    
+    // Bytes 21-24: Temperature data
     for (uint8_t i = 0; i < 2; i++) {
-      dataPacket[20 + i * 2]     = highByte(batteryData.temperatures[i]);
-      dataPacket[21 + i * 2]     = lowByte(batteryData.temperatures[i]);
+      dataPacket[21 + i * 2] = highByte(batteryData.temperatures[i]);
+      dataPacket[22 + i * 2] = lowByte(batteryData.temperatures[i]);
     }
   }
 

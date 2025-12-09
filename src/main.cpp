@@ -10,9 +10,9 @@
 #include "UserInterface.h"
 
 MakitaBattery battery(PIN_BAT_EN, PIN_BAT_DATA);
-PowerController powerController;
+PowerController powerctl;
 SensorManager sensors;
-I2CCommunication i2cComm;
+I2CCommunication comms;
 UserInterface ui;
 
 unsigned long prevTimeForLed = 0;
@@ -25,10 +25,10 @@ const unsigned long BATTERY_INTERVAL = 5000;
 
 void setup() {
   sensors.begin();
-  powerController.begin();
+  powerctl.begin(sensors);
   ui.begin();
   battery.begin();
-  i2cComm.begin();
+  comms.begin();
   sei();
   
   prevTimeForLed = millis();
@@ -40,7 +40,7 @@ void loop() {
   wdt_reset();
   unsigned long now = millis();
 
-  powerController.update(now, sensors.getStopBtnPressed(), sensors.getWallPowerPresent());
+  powerctl.update(now, sensors);
   
   if (now - prevTimeForLed > LED_INTERVAL) {
     prevTimeForLed = now;
@@ -51,7 +51,7 @@ void loop() {
     prevTimeForI2c = now;
     SensorData sensorData = sensors.getData();
     BatteryData batteryData = battery.getData();
-    i2cComm.sendData(sensorData, batteryData);
+    //comms.sendData(sensorData, batteryData);
   }
 
   if (now - prevTimeForBattery > BATTERY_INTERVAL) {
