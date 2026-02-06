@@ -162,7 +162,7 @@ ISR(PCINT0_vect) {
   if (wallPower) {
     g_sensorManager->status |= Status::WALL_POWER_MASK;
     // Immediate motor shutoff on wall power connect (safety)
-    bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
+    PORTC &= ~(1 << PIN_MOTOR_PWR_CTRL);
     g_sensorManager->status &= ~Status::MOTOR_POWER_MASK;
   } else {
     g_sensorManager->status &= ~Status::WALL_POWER_MASK;

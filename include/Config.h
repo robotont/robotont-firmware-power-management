@@ -3,6 +3,15 @@
 
 #include <Arduino.h>
 
+// Disclaimer
+// Do not use arduino bitWrite/bitRead/bitSet/bitClear macros for
+// manipulating hardware registers. They bitshift 32-bit integers, which
+// can lead to unexpected results on 8-bit attiny88 registers. Use direct bitwise
+// operations instead for example:
+    // PORTA |= (1 << PIN_SYS_PWR_CTRL);   // set output to HIGH
+    // PORTA &= ~(1 << PIN_SYS_PWR_CTRL);  // set output to LOW
+
+
 // Pin Definitions
 #define PIN_SYS_PWR_CTRL 3       // PA3
 #define PIN_MOTOR_PWR_CTRL 7     // PC7
@@ -36,13 +45,15 @@
 // I2C Configuration
 #define I2C_SLAVE_ADDRESS 0x12
 
-#define SDA_DDR DDRC
-#define SDA_PORT PORTC
-#define SDA_MASK (1 << PC4)
+#define SDA_DDR   DDRC
+#define SDA_PORT  PORTC
+#define SDA_PIN   PINC      // ADD THIS - for reading pin state
+#define SDA_MASK  (1 << PC4)
 
-#define SCL_DDR DDRC
-#define SCL_PORT PORTC
-#define SCL_MASK (1 << PC5)
+#define SCL_DDR   DDRC
+#define SCL_PORT  PORTC
+#define SCL_PIN   PINC      // ADD THIS
+#define SCL_MASK  (1 << PC5)
 
 // Audio Frequencies (Hz)
 #define BEEP_FREQ_HIGH 1000

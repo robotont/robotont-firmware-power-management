@@ -51,7 +51,7 @@ void loop() {
     prevTimeForI2c = now;
     SensorData sensorData = sensors.getData();
     BatteryData batteryData = battery.getData();
-    //comms.sendData(sensorData, batteryData);
+    comms.sendData(sensorData, batteryData);
   }
 
   if (now - prevTimeForBattery > BATTERY_INTERVAL) {

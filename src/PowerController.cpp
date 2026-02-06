@@ -15,8 +15,8 @@ void PowerController::begin(SensorManager& sensors) {
   // System starts OFF - ensure hardware matches
   sysPowerOn = false;
   motorPowerOn = false;
-  bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
-  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
+  PORTA &= ~(1 << PIN_SYS_PWR_CTRL);
+  PORTC &= ~(1 << PIN_MOTOR_PWR_CTRL);
   
   // Sync sensor status flags with actual hardware state
   sensors.setSysPower(false);
@@ -38,8 +38,8 @@ void PowerController::begin(SensorManager& sensors) {
 void PowerController::setupPins() {
   DDRC |= (1 << PIN_MOTOR_PWR_CTRL);
   DDRA |= (1 << PIN_SYS_PWR_CTRL);
-  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, 0);
-  bitWrite(PORTA, PIN_SYS_PWR_CTRL, 0);
+  PORTC &= ~(1 << PIN_MOTOR_PWR_CTRL);
+  PORTA &= ~(1 << PIN_SYS_PWR_CTRL);
 }
 
 void PowerController::update(unsigned long currentTime, SensorManager& sensors) {
@@ -127,14 +127,22 @@ void PowerController::handleStatusChanges(uint8_t status, uint8_t changed, Senso
 
 void PowerController::setSysPower(bool on, SensorManager& sensors) {
   sysPowerOn = on;
-  bitWrite(PORTA, PIN_SYS_PWR_CTRL, on ? 1 : 0);
+  if (on) {
+    PORTA |= (1 << PIN_SYS_PWR_CTRL);
+  } else {
+    PORTA &= ~(1 << PIN_SYS_PWR_CTRL);
+  }
   sensors.setSysPower(on);
   ui.setDebugLED(on);
 }
 
 void PowerController::setMotorPower(bool on, SensorManager& sensors) {
   motorPowerOn = on;
-  bitWrite(PORTC, PIN_MOTOR_PWR_CTRL, on ? 1 : 0);
+  if (on) {
+    PORTC |= (1 << PIN_MOTOR_PWR_CTRL);
+  } else {
+    PORTC &= ~(1 << PIN_MOTOR_PWR_CTRL);
+  }
   sensors.setMotorPower(on);
 }
 

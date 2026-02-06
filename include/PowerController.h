@@ -11,6 +11,8 @@ public:
   void begin(SensorManager& sensors);
   void update(unsigned long currentTime, SensorManager& sensors);
   bool isSysPowerOn() const { return sysPowerOn; }
+  void setSysPower(bool on, SensorManager& sensors);
+
   
 private:
   bool sysPowerOn;
@@ -23,7 +25,6 @@ private:
   void handlePowerButton(unsigned long currentTime, uint8_t status, SensorManager& sensors);
   void handleStatusChanges(uint8_t status, uint8_t changed, SensorManager& sensors);
   
-  void setSysPower(bool on, SensorManager& sensors);
   void setMotorPower(bool on, SensorManager& sensors);
   void updateStopBtnLED(uint8_t status);
   
