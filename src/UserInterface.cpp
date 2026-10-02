@@ -55,10 +55,10 @@ void UserInterface::setStatusLED(bool on) {
 
 void UserInterface::setDebugLED(bool on) {
   // Red LED
-  if (on)
-    PORTD |= (1 << PIN_DBG_LED_R);
-  else
-    PORTD &= ~(1 << PIN_DBG_LED_R);
+  // if (on)
+  //   PORTD |= (1 << PIN_DBG_LED_R);
+  // else
+  //   PORTD &= ~(1 << PIN_DBG_LED_R);
 }
 
 void UserInterface::playBeep(uint16_t frequencyHz, uint16_t durationMs) {
